@@ -10,17 +10,14 @@ jobs:
       - name: Find project
         shell: pwsh
         run: |
-          $cm = Get-ChildItem -Recurse -Filter CMakeLists.txt | Where-Object { Select-String -Path $_.FullName -Pattern 'juce_add_plugin' -Quiet } | Select-Object -First 1
-          if (-not $cm) {
-            $zip = Get-ChildItem -Recurse -Filter *.zip | Select-Object -First 1
-            if (-not $zip) {
-              Write-Host "No project files or zip found. Repo contains:"
-              Get-ChildItem -Recurse | Select-Object -First 60 FullName
-              exit 1
-            }
-            Expand-Archive -Path $zip.FullName -DestinationPath src
-            $cm = Get-ChildItem -Recurse src -Filter CMakeLists.txt | Select-Object -First 1
+          $zip = Get-ChildItem -Recurse -Filter *.zip | Sort-Object Name -Descending | Select-Object -First 1
+          if ($zip) {
+            Expand-Archive -Path $zip.FullName -DestinationPath src -Force
+            $cm = Get-ChildItem -Recurse src -Filter CMakeLists.txt | Where-Object { Select-String -Path $_.FullName -Pattern 'juce_add_plugin' -Quiet } | Select-Object -First 1
+          } else {
+            $cm = Get-ChildItem -Recurse -Filter CMakeLists.txt | Where-Object { Select-String -Path $_.FullName -Pattern 'juce_add_plugin' -Quiet } | Select-Object -First 1
           }
+          if (-not $cm) { Write-Host "No project found"; Get-ChildItem -Recurse | Select-Object -First 60 FullName; exit 1 }
           Write-Host "Project folder: $($cm.DirectoryName)"
           "PROJECT_DIR=$($cm.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Configure
